@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Phụ Đề Việt",
+  "version": "1.0.0",
+  "description": "Dịch phụ đề YouTube sang tiếng Việt hiển thị phía trên phụ đề gốc",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://translation.googleapis.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

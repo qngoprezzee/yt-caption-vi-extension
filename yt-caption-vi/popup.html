@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Phụ Đề Việt</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 300px;
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #2d2d2d;
+    }
+    .logo {
+      width: 34px; height: 34px;
+      background: #ef4444;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .header-text h1 { font-size: 14px; font-weight: 600; }
+    .header-text p { font-size: 11px; color: #6b7280; margin-top: 1px; }
+
+    /* Toggle switch */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .toggle-label { font-size: 14px; color: #e5e7eb; }
+    .switch { position: relative; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: #374151; border-radius: 24px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .slider:before {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; left: 3px; top: 3px;
+      transition: transform 0.2s;
+    }
+    input:checked + .slider { background: #ef4444; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    /* API key section */
+    .section-title {
+      font-size: 11px; font-weight: 500;
+      color: #6b7280; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 8px;
+    }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 5px; }
+    .input-group input {
+      width: 100%; padding: 8px 10px;
+      background: #1a1a1a; border: 1px solid #2d2d2d;
+      border-radius: 7px; color: #fff; font-size: 12px;
+      font-family: monospace; outline: none;
+    }
+    .input-group input:focus { border-color: #ef4444; }
+    .input-group input::placeholder { color: #4b5563; }
+
+    .save-btn {
+      width: 100%; padding: 9px;
+      background: #ef4444; border: none; border-radius: 8px;
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+      margin-bottom: 14px;
+    }
+    .save-btn:hover { background: #dc2626; }
+
+    .divider { height: 1px; background: #1f2937; margin: 12px 0; }
+
+    .info-box {
+      background: #1a1a1a;
+      border: 1px solid #2d2d2d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .info-box a { color: #818cf8; text-decoration: none; }
+    .info-box a:hover { text-decoration: underline; }
+    .info-box strong { color: #9ca3af; }
+
+    .status-msg {
+      font-size: 11px; text-align: center;
+      padding: 4px 0; color: #22c55e;
+      min-height: 18px;
+    }
+    .status-msg.error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">VI</div>
+    <div class="header-text">
+      <h1>YouTube Phụ Đề Việt</h1>
+      <p>Dịch phụ đề sang tiếng Việt</p>
+    </div>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-label">Bật phụ đề tiếng Việt</span>
+    <label class="switch">
+      <input type="checkbox" id="enabled-toggle" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-title">API Key (tuỳ chọn)</div>
+  <div class="input-group">
+    <label>Google Translate API Key</label>
+    <input type="password" id="api-key" placeholder="AIza..." autocomplete="off">
+  </div>
+  <button class="save-btn" id="save-btn">Lưu cài đặt</button>
+  <div class="status-msg" id="status-msg"></div>
+
+  <div class="info-box">
+    <strong>Không cần API key</strong> — extension tự dịch miễn phí.<br>
+    Nếu gặp giới hạn tốc độ, thêm key từ
+    <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
+    để dịch không giới hạn.<br><br>
+    <strong>Cách dùng:</strong> Mở video YouTube → bật phụ đề (CC) → phụ đề tiếng Việt sẽ hiện phía trên.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

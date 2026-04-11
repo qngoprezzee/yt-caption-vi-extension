@@ -1,0 +1,50 @@
+/* overlay.css — injected into youtube.com */
+
+#yt-vi-overlay {
+  position: fixed;
+  bottom: 120px;        /* sits above YouTube's native captions (~80px from bottom) */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483640;
+  pointer-events: none;
+  max-width: 80%;
+  text-align: center;
+  transition: opacity 0.15s ease;
+  opacity: 0;
+}
+
+#yt-vi-overlay.yt-vi-visible {
+  opacity: 1;
+}
+
+#yt-vi-overlay.yt-vi-hidden {
+  opacity: 0;
+}
+
+#yt-vi-text {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffe066;           /* warm yellow — distinct from white English captions */
+  font-size: 22px;
+  font-weight: 600;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.4;
+  padding: 6px 16px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+  max-width: 100%;
+  word-break: break-word;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* Fullscreen: push overlay lower since YouTube controls shrink */
+:fullscreen #yt-vi-overlay,
+:-webkit-full-screen #yt-vi-overlay {
+  bottom: 100px;
+}
+
+/* Theater mode adjustment */
+.ytp-big-mode #yt-vi-overlay {
+  font-size: 26px;
+  bottom: 130px;
+}
