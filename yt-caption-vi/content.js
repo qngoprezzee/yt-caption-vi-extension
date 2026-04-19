@@ -336,17 +336,26 @@
     wordPopup.style.top = '-9999px';
     wordPopup.classList.add('yt-vi-popup-visible');
     refreshTranslation();
+    requestAnimationFrame(() => positionPopup(clientX));
+  }
 
-    requestAnimationFrame(() => {
-      const pw = wordPopup.offsetWidth;
-      const ph = wordPopup.offsetHeight;
-      let x = clientX - pw / 2;
-      let y = clientY - ph - 16;
-      x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
-      if (y < 8) y = clientY + 20;
-      wordPopup.style.left = x + 'px';
-      wordPopup.style.top = y + 'px';
-    });
+  function positionPopup(clientX) {
+    const pw = wordPopup.offsetWidth;
+    const ph = wordPopup.offsetHeight;
+
+    // Horizontal: centre on click, clamp to viewport
+    let x = clientX - pw / 2;
+    x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
+
+    // Vertical: sit above the caption window with a gap, never cover it
+    const captionEl = document.querySelector('.ytp-caption-window-container')
+                   || overlay;
+    const capTop = captionEl ? captionEl.getBoundingClientRect().top : window.innerHeight;
+    let y = capTop - ph - 24;
+    if (y < 8) y = 8; // last resort: pin to top
+
+    wordPopup.style.left = x + 'px';
+    wordPopup.style.top = y + 'px';
   }
 
   function showWordPopup(text, clientX, clientY, sl) {
@@ -357,17 +366,7 @@
     wordPopup.style.top = '-9999px';
     wordPopup.classList.add('yt-vi-popup-visible');
     refreshTranslation();
-
-    requestAnimationFrame(() => {
-      const pw = wordPopup.offsetWidth;
-      const ph = wordPopup.offsetHeight;
-      let x = clientX - pw / 2;
-      let y = clientY - ph - 16;
-      x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
-      if (y < 8) y = clientY + 20;
-      wordPopup.style.left = x + 'px';
-      wordPopup.style.top = y + 'px';
-    });
+    requestAnimationFrame(() => positionPopup(clientX));
   }
 
   function hideWordPopup() {
