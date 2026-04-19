@@ -116,14 +116,73 @@
   }
 
   // ─── Overlay ──────────────────────────────────────────────────────────────
+  const POSITION_KEY = 'yt-vi-overlay-pos';
+
+  function getDefaultPosition() {
+    return {
+      left: Math.round(window.innerWidth / 2),
+      top: window.innerHeight - 140,
+    };
+  }
+
+  function applyPosition(pos) {
+    // Clamp to viewport
+    const w = overlay.offsetWidth || 300;
+    const h = overlay.offsetHeight || 50;
+    const x = Math.max(0, Math.min(pos.left, window.innerWidth - w));
+    const y = Math.max(0, Math.min(pos.top, window.innerHeight - h));
+    overlay.style.left = x + 'px';
+    overlay.style.top = y + 'px';
+    overlay.style.transform = '';
+  }
+
+  function makeDraggable() {
+    let dragging = false;
+    let startX, startY, origLeft, origTop;
+
+    overlay.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = parseInt(overlay.style.left, 10) || 0;
+      origTop = parseInt(overlay.style.top, 10) || 0;
+      overlay.classList.add('yt-vi-dragging');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      applyPosition({
+        left: origLeft + (e.clientX - startX),
+        top: origTop + (e.clientY - startY),
+      });
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      overlay.classList.remove('yt-vi-dragging');
+      localStorage.setItem(POSITION_KEY, JSON.stringify({
+        left: parseInt(overlay.style.left, 10),
+        top: parseInt(overlay.style.top, 10),
+      }));
+    });
+  }
+
   function ensureOverlay() {
     if (overlay) return;
     overlay = document.createElement('div');
     overlay.id = 'yt-vi-overlay';
-    overlay.innerHTML = `
-      <div id="yt-vi-text"></div>
-    `;
+    overlay.innerHTML = `<div id="yt-vi-text"></div>`;
     document.body.appendChild(overlay);
+
+    // Restore saved position or use default
+    const saved = localStorage.getItem(POSITION_KEY);
+    const pos = saved ? JSON.parse(saved) : getDefaultPosition();
+    // Use rAF so offsetWidth/Height are available after first paint
+    requestAnimationFrame(() => applyPosition(pos));
+
+    makeDraggable();
   }
 
   function showOverlay(text) {

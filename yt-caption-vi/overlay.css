@@ -2,15 +2,19 @@
 
 #yt-vi-overlay {
   position: fixed;
-  bottom: 120px;        /* sits above YouTube's native captions (~80px from bottom) */
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 2147483640;
-  pointer-events: none;
+  pointer-events: auto;
   max-width: 80%;
   text-align: center;
   transition: opacity 0.15s ease;
   opacity: 0;
+  cursor: grab;
+  user-select: none;
+}
+
+#yt-vi-overlay.yt-vi-dragging {
+  cursor: grabbing;
+  transition: none;
 }
 
 #yt-vi-overlay.yt-vi-visible {
@@ -37,14 +41,12 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 
-/* Fullscreen: push overlay lower since YouTube controls shrink */
-:fullscreen #yt-vi-overlay,
-:-webkit-full-screen #yt-vi-overlay {
-  bottom: 100px;
+/* Fullscreen/theater mode font adjustment — position is now user-controlled */
+:fullscreen #yt-vi-text,
+:-webkit-full-screen #yt-vi-text {
+  font-size: 24px;
 }
 
-/* Theater mode adjustment */
-.ytp-big-mode #yt-vi-overlay {
+.ytp-big-mode #yt-vi-text {
   font-size: 26px;
-  bottom: 130px;
 }
