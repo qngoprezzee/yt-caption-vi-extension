@@ -147,25 +147,59 @@
   display: block;
 }
 
-#yt-vi-popup-word {
-  font-size: 20px;
-  font-weight: 700;
+/* chips row */
+#yt-vi-popup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.yt-vi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #2d2d2d;
   color: #fff;
-  margin-bottom: 2px;
+  border-radius: 5px;
+  padding: 3px 6px 3px 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.yt-vi-chip-x {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  pointer-events: auto;
+}
+
+.yt-vi-chip-x:hover { color: #ef4444; }
+
+/* hint below chips */
+#yt-vi-popup-hint {
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+#yt-vi-popup-translation {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffe066;
+  margin-bottom: 6px;
 }
 
 #yt-vi-popup-phonetic {
   font-size: 13px;
   color: #888;
-  margin-bottom: 8px;
-  min-height: 18px;
-}
-
-#yt-vi-popup-translation {
-  font-size: 17px;
-  font-weight: 600;
-  color: #ffe066;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  min-height: 0;
 }
 
 #yt-vi-popup-definition {
@@ -175,12 +209,6 @@
   border-top: 1px solid #2d2d2d;
   padding-top: 8px;
   min-height: 0;
-}
-
-#yt-vi-popup-loading {
-  font-size: 13px;
-  color: #555;
-  font-style: italic;
 }
 
 /* Fullscreen/theater mode font adjustment — position is now user-controlled */

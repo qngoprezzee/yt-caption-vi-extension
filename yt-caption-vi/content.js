@@ -255,37 +255,87 @@
     overlay.classList.add('yt-vi-hidden');
   }
 
-  // ─── Word Popup ───────────────────────────────────────────────────────────
+  // ─── Word Popup (chip-based group translation) ────────────────────────────
   let wordPopup = null;
+  let wordGroup = []; // { text, lang }[]
+  let popupLang = 'en';
+  let translateTimer2 = null;
 
   function ensureWordPopup() {
     if (wordPopup) return;
     wordPopup = document.createElement('div');
     wordPopup.id = 'yt-vi-word-popup';
     wordPopup.innerHTML = `
-      <div id="yt-vi-popup-word"></div>
+      <div id="yt-vi-popup-chips"></div>
+      <div id="yt-vi-popup-hint">Click thêm từ để dịch nhóm</div>
+      <div id="yt-vi-popup-translation">...</div>
       <div id="yt-vi-popup-phonetic"></div>
-      <div id="yt-vi-popup-translation"><span id="yt-vi-popup-loading">...</span></div>
       <div id="yt-vi-popup-definition"></div>
     `;
     document.body.appendChild(wordPopup);
-
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') hideWordPopup();
     });
   }
 
-  function showWordPopup(word, clientX, clientY, sourceLang) {
-    ensureWordPopup();
-    wordPopup.querySelector('#yt-vi-popup-word').textContent = word;
-    wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = '';
+  function renderChips() {
+    const el = wordPopup.querySelector('#yt-vi-popup-chips');
+    el.innerHTML = wordGroup.map((w, i) =>
+      `<span class="yt-vi-chip">${w.text}<button class="yt-vi-chip-x" data-i="${i}" title="Xóa">×</button></span>`
+    ).join('');
+    el.querySelectorAll('.yt-vi-chip-x').forEach(btn => {
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        wordGroup.splice(+btn.dataset.i, 1);
+        if (wordGroup.length === 0) { hideWordPopup(); return; }
+        refreshTranslation();
+      });
+    });
+    wordPopup.querySelector('#yt-vi-popup-hint').style.display =
+      wordGroup.length === 1 ? 'block' : 'none';
+  }
+
+  function refreshTranslation() {
+    renderChips();
+    const phrase = wordGroup.map(w => w.text).join(' ');
     wordPopup.querySelector('#yt-vi-popup-translation').textContent = '...';
+    wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = '';
     wordPopup.querySelector('#yt-vi-popup-definition').textContent = '';
 
-    // Place off-screen first so we can measure dimensions, then snap into place
+    clearTimeout(translateTimer2);
+    translateTimer2 = setTimeout(() => {
+      const snap = phrase;
+      fetchWordInfo(phrase, popupLang).then(info => {
+        const current = wordGroup.map(w => w.text).join(' ');
+        if (current !== snap) return;
+        wordPopup.querySelector('#yt-vi-popup-translation').textContent = info.translation || '—';
+        wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = info.phonetic || '';
+        wordPopup.querySelector('#yt-vi-popup-definition').textContent = info.definition || '';
+      });
+    }, 150);
+  }
+
+  function addWordToGroup(word, sl, clientX, clientY) {
+    ensureWordPopup();
+    const isOpen = wordPopup.classList.contains('yt-vi-popup-visible');
+
+    if (isOpen && sl === popupLang) {
+      // Append to existing group
+      if (!wordGroup.find(w => w.text === word)) {
+        wordGroup.push({ text: word, lang: sl });
+        refreshTranslation();
+      }
+      return;
+    }
+
+    // New group
+    wordGroup = [{ text: word, lang: sl }];
+    popupLang = sl;
     wordPopup.style.left = '-9999px';
     wordPopup.style.top = '-9999px';
     wordPopup.classList.add('yt-vi-popup-visible');
+    refreshTranslation();
 
     requestAnimationFrame(() => {
       const pw = wordPopup.offsetWidth;
@@ -297,19 +347,32 @@
       wordPopup.style.left = x + 'px';
       wordPopup.style.top = y + 'px';
     });
+  }
 
-    const token = word; // capture for stale-check
-    fetchWordInfo(word, sourceLang).then(info => {
-      // Bail if user already clicked a different word
-      if (wordPopup.querySelector('#yt-vi-popup-word').textContent !== token) return;
-      wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = info.phonetic || '';
-      wordPopup.querySelector('#yt-vi-popup-translation').textContent = info.translation || '—';
-      wordPopup.querySelector('#yt-vi-popup-definition').textContent = info.definition || '';
+  function showWordPopup(text, clientX, clientY, sl) {
+    wordGroup = text.split(' ').map(t => ({ text: t, lang: sl }));
+    popupLang = sl;
+    ensureWordPopup();
+    wordPopup.style.left = '-9999px';
+    wordPopup.style.top = '-9999px';
+    wordPopup.classList.add('yt-vi-popup-visible');
+    refreshTranslation();
+
+    requestAnimationFrame(() => {
+      const pw = wordPopup.offsetWidth;
+      const ph = wordPopup.offsetHeight;
+      let x = clientX - pw / 2;
+      let y = clientY - ph - 16;
+      x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
+      if (y < 8) y = clientY + 20;
+      wordPopup.style.left = x + 'px';
+      wordPopup.style.top = y + 'px';
     });
   }
 
   function hideWordPopup() {
     if (wordPopup) wordPopup.classList.remove('yt-vi-popup-visible');
+    wordGroup = [];
   }
 
   async function fetchWordInfo(text, sourceLang) {
@@ -480,7 +543,7 @@
 
       const sl = sourceLangForTarget(e.target);
       const word = wordFromPoint(e.clientX, e.clientY);
-      if (word) showWordPopup(word, e.clientX, e.clientY, sl);
+      if (word) addWordToGroup(word, sl, e.clientX, e.clientY);
     }, true);
   }
 
