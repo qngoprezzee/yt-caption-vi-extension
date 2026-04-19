@@ -12,6 +12,7 @@
   let observer = null;
   let lastText = '';
   let translateTimer = null;
+  let overlayWasDragged = false; // shared between makeDraggable & click handler
   const cache = new Map(); // text → translated (session cache)
 
   // ─── Init ─────────────────────────────────────────────────────────────────
@@ -184,6 +185,7 @@
 
     overlay.addEventListener('mousedown', (e) => {
       dragging = true;
+      overlayWasDragged = false;
       startX = e.clientX;
       startY = e.clientY;
       origLeft = parseInt(overlay.style.left, 10) || 0;
@@ -194,20 +196,22 @@
 
     document.addEventListener('mousemove', (e) => {
       if (!dragging) return;
-      applyPosition({
-        left: origLeft + (e.clientX - startX),
-        top: origTop + (e.clientY - startY),
-      });
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) overlayWasDragged = true;
+      applyPosition({ left: origLeft + dx, top: origTop + dy });
     });
 
     document.addEventListener('mouseup', () => {
       if (!dragging) return;
       dragging = false;
       overlay.classList.remove('yt-vi-dragging');
-      localStorage.setItem(POSITION_KEY, JSON.stringify({
-        left: parseInt(overlay.style.left, 10),
-        top: parseInt(overlay.style.top, 10),
-      }));
+      if (overlayWasDragged) {
+        localStorage.setItem(POSITION_KEY, JSON.stringify({
+          left: parseInt(overlay.style.left, 10),
+          top: parseInt(overlay.style.top, 10),
+        }));
+      }
     });
   }
 
@@ -256,9 +260,6 @@
     `;
     document.body.appendChild(wordPopup);
 
-    document.addEventListener('click', (e) => {
-      if (wordPopup && !wordPopup.contains(e.target)) hideWordPopup();
-    });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') hideWordPopup();
     });
@@ -396,28 +397,40 @@
   }
 
   function attachCaptionClickHandler() {
+    // Dismiss on mousedown outside — capture beats YouTube's own handlers
+    document.addEventListener('mousedown', (e) => {
+      if (!wordPopup) return;
+      if (wordPopup.contains(e.target)) return;
+      if (e.target.closest('.ytp-caption-window-container')) return;
+      if (e.target.closest('#yt-vi-overlay')) return;
+      hideWordPopup();
+    }, true);
+
     document.addEventListener('mouseup', (e) => {
-      // Ignore clicks on the popup itself
       if (wordPopup && wordPopup.contains(e.target)) return;
 
       const inCaption = e.target.closest('.ytp-caption-window-container');
       const inOverlay = e.target.closest('#yt-vi-overlay');
       if (!inCaption && !inOverlay) return;
 
-      const sl = sourceLangForTarget(e.target);
-
-      // Multi-word selection takes priority
-      const sel = getSelectionText();
-      if (sel && sel.length > 1) {
-        const coords = getSelectionAnchorCoords();
-        const x = coords ? coords.x : e.clientX;
-        const y = coords ? coords.y : e.clientY;
-        e.stopPropagation();
-        showWordPopup(sel, x, y, sl);
+      // If the user just dragged the overlay, don't treat mouseup as a click
+      if (inOverlay && overlayWasDragged) {
+        overlayWasDragged = false;
         return;
       }
 
-      // Single word click
+      const sl = sourceLangForTarget(e.target);
+
+      // Multi-word selection takes priority over single-word click
+      const sel = getSelectionText();
+      if (sel && sel.length > 1) {
+        const coords = getSelectionAnchorCoords();
+        window.getSelection()?.removeAllRanges();
+        e.stopPropagation();
+        showWordPopup(sel, coords?.x ?? e.clientX, coords?.y ?? e.clientY, sl);
+        return;
+      }
+
       const word = wordFromPoint(e.clientX, e.clientY);
       if (word) {
         e.stopPropagation();
