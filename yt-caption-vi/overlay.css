@@ -41,6 +41,108 @@
   text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 
+/* ── Player control button ─────────────────────────────────────────────── */
+#yt-vi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 8px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+  vertical-align: middle;
+}
+
+#yt-vi-btn.yt-vi-btn-on {
+  color: #ffe066;
+  opacity: 1;
+}
+
+#yt-vi-btn.yt-vi-btn-off {
+  color: rgba(255, 255, 255, 0.4);
+  opacity: 1;
+}
+
+#yt-vi-btn:hover {
+  opacity: 0.85;
+}
+
+/* ── Make YouTube caption segments clickable ───────────────────────────── */
+.ytp-caption-window-container {
+  pointer-events: auto !important;
+}
+.ytp-caption-segment {
+  cursor: pointer !important;
+}
+.ytp-caption-segment:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+/* ── Word lookup popup ─────────────────────────────────────────────────── */
+#yt-vi-word-popup {
+  display: none;
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 200px;
+  max-width: 320px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  pointer-events: auto;
+  transition: opacity 0.12s ease;
+}
+
+#yt-vi-word-popup.yt-vi-popup-visible {
+  display: block;
+}
+
+#yt-vi-popup-word {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+#yt-vi-popup-phonetic {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 8px;
+  min-height: 18px;
+}
+
+#yt-vi-popup-translation {
+  font-size: 17px;
+  font-weight: 600;
+  color: #ffe066;
+  margin-bottom: 8px;
+}
+
+#yt-vi-popup-definition {
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.5;
+  border-top: 1px solid #2d2d2d;
+  padding-top: 8px;
+  min-height: 0;
+}
+
+#yt-vi-popup-loading {
+  font-size: 13px;
+  color: #555;
+  font-style: italic;
+}
+
 /* Fullscreen/theater mode font adjustment — position is now user-controlled */
 :fullscreen #yt-vi-text,
 :-webkit-full-screen #yt-vi-text {

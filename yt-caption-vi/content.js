@@ -18,6 +18,8 @@
   chrome.storage.local.get(['enabled', 'apiKey'], (data) => {
     enabled = data.enabled !== false;
     apiKey = data.apiKey || '';
+    waitForPlayerButton();
+    attachCaptionClickHandler();
     if (enabled) start();
   });
 
@@ -25,11 +27,51 @@
     if (changes.enabled) {
       enabled = changes.enabled.newValue;
       enabled ? start() : stop();
+      updatePlayerButton();
     }
     if (changes.apiKey) {
       apiKey = changes.apiKey.newValue || '';
     }
   });
+
+  // ─── Player Button ────────────────────────────────────────────────────────
+  let playerBtn = null;
+
+  function ensurePlayerButton() {
+    if (playerBtn) return;
+    const controls = document.querySelector('.ytp-right-controls');
+    if (!controls) return;
+
+    playerBtn = document.createElement('button');
+    playerBtn.id = 'yt-vi-btn';
+    playerBtn.title = 'Phụ đề Tiếng Việt';
+    playerBtn.textContent = 'VI';
+    playerBtn.className = enabled ? 'yt-vi-btn-on' : 'yt-vi-btn-off';
+
+    playerBtn.addEventListener('click', () => {
+      enabled = !enabled;
+      chrome.storage.local.set({ enabled });
+      // storage.onChanged triggers start()/stop(), so just update button here
+      updatePlayerButton();
+    });
+
+    // Insert before the first child (leftmost in right-controls)
+    controls.insertBefore(playerBtn, controls.firstChild);
+  }
+
+  function updatePlayerButton() {
+    if (!playerBtn) return;
+    playerBtn.className = enabled ? 'yt-vi-btn-on' : 'yt-vi-btn-off';
+  }
+
+  function waitForPlayerButton() {
+    const interval = setInterval(() => {
+      if (document.querySelector('.ytp-right-controls')) {
+        clearInterval(interval);
+        ensurePlayerButton();
+      }
+    }, 600);
+  }
 
   // ─── Start / Stop ─────────────────────────────────────────────────────────
   function start() {
@@ -199,6 +241,130 @@
     overlay.classList.add('yt-vi-hidden');
   }
 
+  // ─── Word Popup ───────────────────────────────────────────────────────────
+  let wordPopup = null;
+
+  function ensureWordPopup() {
+    if (wordPopup) return;
+    wordPopup = document.createElement('div');
+    wordPopup.id = 'yt-vi-word-popup';
+    wordPopup.innerHTML = `
+      <div id="yt-vi-popup-word"></div>
+      <div id="yt-vi-popup-phonetic"></div>
+      <div id="yt-vi-popup-translation"><span id="yt-vi-popup-loading">...</span></div>
+      <div id="yt-vi-popup-definition"></div>
+    `;
+    document.body.appendChild(wordPopup);
+
+    document.addEventListener('click', (e) => {
+      if (wordPopup && !wordPopup.contains(e.target)) hideWordPopup();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hideWordPopup();
+    });
+  }
+
+  function showWordPopup(word, clientX, clientY, sourceLang) {
+    ensureWordPopup();
+    wordPopup.querySelector('#yt-vi-popup-word').textContent = word;
+    wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = '';
+    wordPopup.querySelector('#yt-vi-popup-translation').innerHTML = '<span id="yt-vi-popup-loading">...</span>';
+    wordPopup.querySelector('#yt-vi-popup-definition').textContent = '';
+    wordPopup.classList.add('yt-vi-popup-visible');
+
+    requestAnimationFrame(() => {
+      const pw = wordPopup.offsetWidth;
+      const ph = wordPopup.offsetHeight;
+      let x = clientX - pw / 2;
+      let y = clientY - ph - 16;
+      if (x < 8) x = 8;
+      if (x + pw > window.innerWidth - 8) x = window.innerWidth - pw - 8;
+      if (y < 8) y = clientY + 20;
+      wordPopup.style.left = x + 'px';
+      wordPopup.style.top = y + 'px';
+    });
+
+    fetchWordInfo(word, sourceLang).then(info => {
+      if (!wordPopup.classList.contains('yt-vi-popup-visible')) return;
+      wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = info.phonetic || '';
+      wordPopup.querySelector('#yt-vi-popup-translation').textContent = info.translation || '—';
+      wordPopup.querySelector('#yt-vi-popup-definition').textContent = info.definition || '';
+    });
+  }
+
+  function hideWordPopup() {
+    if (wordPopup) wordPopup.classList.remove('yt-vi-popup-visible');
+  }
+
+  async function fetchWordInfo(word, sourceLang) {
+    const info = { translation: '', phonetic: '', definition: '' };
+    const targetLang = sourceLang === 'en' ? 'vi' : 'en';
+    const clean = word.toLowerCase().replace(/[^a-zA-ZÀ-ỹ\s]/g, '').trim();
+    if (!clean) return info;
+
+    await Promise.all([
+      // Translation via free Google Translate
+      translateWord(clean, sourceLang, targetLang)
+        .then(t => { if (t) info.translation = t; })
+        .catch(() => {}),
+
+      // Phonetic + definition from Free Dictionary API (English words only)
+      sourceLang === 'en'
+        ? fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (!data?.[0]) return;
+              const entry = data[0];
+              const phonetics = entry.phonetics || [];
+              const p = [entry.phonetic, ...phonetics.map(x => x.text)].find(Boolean);
+              if (p) info.phonetic = p;
+              const def = entry.meanings?.[0]?.definitions?.[0]?.definition;
+              if (def) info.definition = def;
+            })
+            .catch(() => {})
+        : Promise.resolve(),
+    ]);
+
+    return info;
+  }
+
+  async function translateWord(word, sl, tl) {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(word)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data[0].map(item => item[0]).filter(Boolean).join('');
+  }
+
+  function wordFromPoint(x, y) {
+    const range = document.caretRangeFromPoint(x, y);
+    if (!range) return null;
+    range.expand('word');
+    return range.toString().replace(/[^\w\u00C0-\u024F\u1EA0-\u1EF9]/g, '').trim() || null;
+  }
+
+  function attachCaptionClickHandler() {
+    document.addEventListener('click', (e) => {
+      // Click on YouTube English caption
+      if (e.target.closest('.ytp-caption-window-container')) {
+        const word = wordFromPoint(e.clientX, e.clientY);
+        if (word) {
+          e.stopPropagation();
+          showWordPopup(word, e.clientX, e.clientY, 'en');
+        }
+        return;
+      }
+      // Click on Vietnamese overlay
+      if (e.target.closest('#yt-vi-overlay')) {
+        const word = wordFromPoint(e.clientX, e.clientY);
+        if (word) {
+          e.stopPropagation();
+          showWordPopup(word, e.clientX, e.clientY, 'vi');
+        }
+      }
+    }, true); // capture phase so we run before YouTube's handlers
+  }
+
   // ─── Translation ──────────────────────────────────────────────────────────
   async function translateAndShow(text) {
     if (!text) return;
@@ -265,9 +431,11 @@
       lastUrl = location.href;
       stop();
       cache.clear();
-      if (enabled) {
-        setTimeout(() => waitForCaptionContainer(), 1500);
-      }
+      playerBtn = null; // controls DOM is rebuilt by YouTube on navigation
+      setTimeout(() => {
+        waitForPlayerButton();
+        if (enabled) waitForCaptionContainer();
+      }, 1500);
     }
   }).observe(document, { subtree: true, childList: true });
 
