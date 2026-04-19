@@ -21,6 +21,7 @@
     apiKey = data.apiKey || '';
     waitForPlayerButton();
     attachCaptionClickHandler();
+    attachSelectionButton();
     if (enabled) start();
   });
 
@@ -383,30 +384,77 @@
     return word;
   }
 
-  function getSelectionText() {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) return null;
-    return sel.toString().trim().replace(/\s+/g, ' ') || null;
-  }
 
-  function getSelectionAnchorCoords() {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return null;
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    return { x: (rect.left + rect.right) / 2, y: rect.top };
-  }
-
-  function inCaptionArea(node) {
-    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-    return el && (el.closest('.ytp-caption-window-container') || el.closest('#yt-vi-overlay'));
-  }
 
   function sourceLangForTarget(target) {
     return target.closest('#yt-vi-overlay') ? 'vi' : 'en';
   }
 
+  // ─── Floating "Dịch" button for text selection ────────────────────────────
+  let selBtn = null;
+
+  function ensureSelBtn() {
+    if (selBtn) return;
+    selBtn = document.createElement('button');
+    selBtn.id = 'yt-vi-sel-btn';
+    selBtn.textContent = 'Dịch';
+    document.body.appendChild(selBtn);
+
+    selBtn.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // keep the selection alive
+      const sel = window.getSelection();
+      const text = sel?.toString().trim().replace(/\s+/g, ' ') || '';
+      if (!text) return;
+
+      const rect = sel.rangeCount ? sel.getRangeAt(0).getBoundingClientRect() : null;
+      const x = rect ? (rect.left + rect.right) / 2 : e.clientX;
+      const y = rect ? rect.top : e.clientY;
+
+      const anchor = sel.anchorNode?.parentElement;
+      const sl = anchor?.closest('#yt-vi-overlay') ? 'vi' : 'en';
+
+      window.getSelection()?.removeAllRanges();
+      hideSelBtn();
+      showWordPopup(text, x, y, sl);
+    });
+  }
+
+  function showSelBtn(x, y) {
+    ensureSelBtn();
+    selBtn.style.left = x + 'px';
+    selBtn.style.top = y + 'px';
+    selBtn.classList.add('yt-vi-sel-btn-visible');
+  }
+
+  function hideSelBtn() {
+    selBtn?.classList.remove('yt-vi-sel-btn-visible');
+  }
+
+  function attachSelectionButton() {
+    let timer = null;
+    document.addEventListener('selectionchange', () => {
+      clearTimeout(timer);
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() || '';
+      if (!text || sel.isCollapsed) { hideSelBtn(); return; }
+
+      const anchor = sel.anchorNode?.parentElement;
+      if (!anchor) { hideSelBtn(); return; }
+      const inCaption = anchor.closest('.ytp-caption-window-container');
+      if (!inCaption) { hideSelBtn(); return; }
+
+      // Debounce: wait for selection to settle before showing button
+      timer = setTimeout(() => {
+        const range = sel.rangeCount ? sel.getRangeAt(0) : null;
+        if (!range) return;
+        const rect = range.getBoundingClientRect();
+        showSelBtn((rect.left + rect.right) / 2, rect.top - 6);
+      }, 120);
+    });
+  }
+
   function attachCaptionClickHandler() {
-    // Dismiss on mousedown outside — capture beats YouTube's own handlers
+    // Dismiss popup on mousedown outside caption/overlay/popup
     document.addEventListener('mousedown', (e) => {
       if (!wordPopup) return;
       if (wordPopup.contains(e.target)) return;
@@ -415,30 +463,22 @@
       hideWordPopup();
     }, true);
 
+    // Single-word click on caption or overlay
     document.addEventListener('mouseup', (e) => {
       if (wordPopup && wordPopup.contains(e.target)) return;
+      if (selBtn && selBtn.contains(e.target)) return;
 
       const inCaption = e.target.closest('.ytp-caption-window-container');
       const inOverlay = e.target.closest('#yt-vi-overlay');
       if (!inCaption && !inOverlay) return;
 
-      // If the user just dragged the overlay, don't treat mouseup as a click
-      if (inOverlay && overlayWasDragged) {
-        overlayWasDragged = false;
-        return;
-      }
+      if (inOverlay && overlayWasDragged) { overlayWasDragged = false; return; }
+
+      // Ignore if user just finished a text selection — the selBtn will handle it
+      const selText = window.getSelection()?.toString().trim() || '';
+      if (selText.length > 1) return;
 
       const sl = sourceLangForTarget(e.target);
-
-      // Multi-word selection takes priority over single-word click
-      const sel = getSelectionText();
-      if (sel && sel.length > 1) {
-        const coords = getSelectionAnchorCoords();
-        window.getSelection()?.removeAllRanges();
-        showWordPopup(sel, coords?.x ?? e.clientX, coords?.y ?? e.clientY, sl);
-        return;
-      }
-
       const word = wordFromPoint(e.clientX, e.clientY);
       if (word) showWordPopup(word, e.clientX, e.clientY, sl);
     }, true);

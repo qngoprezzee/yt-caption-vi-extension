@@ -80,10 +80,50 @@
 }
 .ytp-caption-segment {
   cursor: pointer !important;
+  user-select: text !important;
 }
 .ytp-caption-segment:hover {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
+}
+
+/* ── Floating translate button for text selection ──────────────────────── */
+#yt-vi-sel-btn {
+  display: none;
+  position: fixed;
+  z-index: 2147483647;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
+  cursor: pointer;
+  transform: translateX(-50%) translateY(-100%);
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+
+#yt-vi-sel-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom: none;
+  border-top-color: #ef4444;
+}
+
+#yt-vi-sel-btn.yt-vi-sel-btn-visible {
+  display: block;
+}
+
+#yt-vi-sel-btn:hover {
+  background: #dc2626;
 }
 
 /* ── Word lookup popup ─────────────────────────────────────────────────── */
