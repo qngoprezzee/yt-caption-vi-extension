@@ -180,33 +180,42 @@
   }
 
   function makeDraggable() {
-    let dragging = false;
+    let pending = false; // mousedown happened, waiting to see if it's a drag
+    let dragging = false; // movement threshold crossed — real drag in progress
     let startX, startY, origLeft, origTop;
 
     overlay.addEventListener('mousedown', (e) => {
-      dragging = true;
+      if (e.button !== 0) return;
+      pending = true;
+      dragging = false;
       overlayWasDragged = false;
       startX = e.clientX;
       startY = e.clientY;
       origLeft = parseInt(overlay.style.left, 10) || 0;
       origTop = parseInt(overlay.style.top, 10) || 0;
-      overlay.classList.add('yt-vi-dragging');
-      e.preventDefault();
+      // No preventDefault — let click and text-selection events stay intact
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
+      if (!pending) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) overlayWasDragged = true;
-      applyPosition({ left: origLeft + dx, top: origTop + dy });
+      if (!dragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+        dragging = true;
+        overlayWasDragged = true;
+        overlay.classList.add('yt-vi-dragging');
+        window.getSelection()?.removeAllRanges();
+      }
+      if (dragging) applyPosition({ left: origLeft + dx, top: origTop + dy });
     });
 
+    // Bubble phase — runs AFTER our capture-phase mouseup in attachCaptionClickHandler
     document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      overlay.classList.remove('yt-vi-dragging');
-      if (overlayWasDragged) {
+      if (!pending) return;
+      pending = false;
+      if (dragging) {
+        dragging = false;
+        overlay.classList.remove('yt-vi-dragging');
         localStorage.setItem(POSITION_KEY, JSON.stringify({
           left: parseInt(overlay.style.left, 10),
           top: parseInt(overlay.style.top, 10),
@@ -426,16 +435,12 @@
       if (sel && sel.length > 1) {
         const coords = getSelectionAnchorCoords();
         window.getSelection()?.removeAllRanges();
-        e.stopPropagation();
         showWordPopup(sel, coords?.x ?? e.clientX, coords?.y ?? e.clientY, sl);
         return;
       }
 
       const word = wordFromPoint(e.clientX, e.clientY);
-      if (word) {
-        e.stopPropagation();
-        showWordPopup(word, e.clientX, e.clientY, sl);
-      }
+      if (word) showWordPopup(word, e.clientX, e.clientY, sl);
     }, true);
   }
 
