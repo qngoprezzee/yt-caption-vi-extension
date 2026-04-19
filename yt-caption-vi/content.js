@@ -301,27 +301,28 @@
     if (wordPopup) wordPopup.classList.remove('yt-vi-popup-visible');
   }
 
-  async function fetchWordInfo(word, sourceLang) {
+  async function fetchWordInfo(text, sourceLang) {
     const info = { translation: '', phonetic: '', definition: '' };
     const targetLang = sourceLang === 'en' ? 'vi' : 'en';
-    const clean = word.toLowerCase().replace(/[^a-zA-ZÀ-ỹ\s]/g, '').trim();
+    const clean = text.trim();
     if (!clean) return info;
 
+    const isSingleWord = !clean.includes(' ');
+
     await Promise.all([
-      // Translation via free Google Translate
+      // Translation (works for single words and phrases)
       translateWord(clean, sourceLang, targetLang)
         .then(t => { if (t) info.translation = t; })
         .catch(() => {}),
 
-      // Phonetic + definition from Free Dictionary API (English words only)
-      sourceLang === 'en'
-        ? fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`)
+      // Phonetic + definition only for single English words
+      (isSingleWord && sourceLang === 'en')
+        ? fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean.toLowerCase())}`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
               if (!data?.[0]) return;
               const entry = data[0];
-              const phonetics = entry.phonetics || [];
-              const p = [entry.phonetic, ...phonetics.map(x => x.text)].find(Boolean);
+              const p = [entry.phonetic, ...(entry.phonetics || []).map(x => x.text)].find(Boolean);
               if (p) info.phonetic = p;
               const def = entry.meanings?.[0]?.definitions?.[0]?.definition;
               if (def) info.definition = def;
@@ -372,26 +373,57 @@
     return word;
   }
 
+  function getSelectionText() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return null;
+    return sel.toString().trim().replace(/\s+/g, ' ') || null;
+  }
+
+  function getSelectionAnchorCoords() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return null;
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    return { x: (rect.left + rect.right) / 2, y: rect.top };
+  }
+
+  function inCaptionArea(node) {
+    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    return el && (el.closest('.ytp-caption-window-container') || el.closest('#yt-vi-overlay'));
+  }
+
+  function sourceLangForTarget(target) {
+    return target.closest('#yt-vi-overlay') ? 'vi' : 'en';
+  }
+
   function attachCaptionClickHandler() {
-    document.addEventListener('click', (e) => {
-      // Click on YouTube English caption
-      if (e.target.closest('.ytp-caption-window-container')) {
-        const word = wordFromPoint(e.clientX, e.clientY);
-        if (word) {
-          e.stopPropagation();
-          showWordPopup(word, e.clientX, e.clientY, 'en');
-        }
+    document.addEventListener('mouseup', (e) => {
+      // Ignore clicks on the popup itself
+      if (wordPopup && wordPopup.contains(e.target)) return;
+
+      const inCaption = e.target.closest('.ytp-caption-window-container');
+      const inOverlay = e.target.closest('#yt-vi-overlay');
+      if (!inCaption && !inOverlay) return;
+
+      const sl = sourceLangForTarget(e.target);
+
+      // Multi-word selection takes priority
+      const sel = getSelectionText();
+      if (sel && sel.length > 1) {
+        const coords = getSelectionAnchorCoords();
+        const x = coords ? coords.x : e.clientX;
+        const y = coords ? coords.y : e.clientY;
+        e.stopPropagation();
+        showWordPopup(sel, x, y, sl);
         return;
       }
-      // Click on Vietnamese overlay
-      if (e.target.closest('#yt-vi-overlay')) {
-        const word = wordFromPoint(e.clientX, e.clientY);
-        if (word) {
-          e.stopPropagation();
-          showWordPopup(word, e.clientX, e.clientY, 'vi');
-        }
+
+      // Single word click
+      const word = wordFromPoint(e.clientX, e.clientY);
+      if (word) {
+        e.stopPropagation();
+        showWordPopup(word, e.clientX, e.clientY, sl);
       }
-    }, true); // capture phase so we run before YouTube's handlers
+    }, true);
   }
 
   // ─── Translation ──────────────────────────────────────────────────────────
