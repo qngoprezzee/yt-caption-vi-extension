@@ -268,8 +268,12 @@
     ensureWordPopup();
     wordPopup.querySelector('#yt-vi-popup-word').textContent = word;
     wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = '';
-    wordPopup.querySelector('#yt-vi-popup-translation').innerHTML = '<span id="yt-vi-popup-loading">...</span>';
+    wordPopup.querySelector('#yt-vi-popup-translation').textContent = '...';
     wordPopup.querySelector('#yt-vi-popup-definition').textContent = '';
+
+    // Place off-screen first so we can measure dimensions, then snap into place
+    wordPopup.style.left = '-9999px';
+    wordPopup.style.top = '-9999px';
     wordPopup.classList.add('yt-vi-popup-visible');
 
     requestAnimationFrame(() => {
@@ -277,15 +281,16 @@
       const ph = wordPopup.offsetHeight;
       let x = clientX - pw / 2;
       let y = clientY - ph - 16;
-      if (x < 8) x = 8;
-      if (x + pw > window.innerWidth - 8) x = window.innerWidth - pw - 8;
+      x = Math.max(8, Math.min(x, window.innerWidth - pw - 8));
       if (y < 8) y = clientY + 20;
       wordPopup.style.left = x + 'px';
       wordPopup.style.top = y + 'px';
     });
 
+    const token = word; // capture for stale-check
     fetchWordInfo(word, sourceLang).then(info => {
-      if (!wordPopup.classList.contains('yt-vi-popup-visible')) return;
+      // Bail if user already clicked a different word
+      if (wordPopup.querySelector('#yt-vi-popup-word').textContent !== token) return;
       wordPopup.querySelector('#yt-vi-popup-phonetic').textContent = info.phonetic || '';
       wordPopup.querySelector('#yt-vi-popup-translation').textContent = info.translation || '—';
       wordPopup.querySelector('#yt-vi-popup-definition').textContent = info.definition || '';
@@ -336,11 +341,35 @@
     return data[0].map(item => item[0]).filter(Boolean).join('');
   }
 
+  function isWordChar(c) {
+    return /[\wÀ-ÖØ-öø-ÿÀ-ỹ]/.test(c);
+  }
+
   function wordFromPoint(x, y) {
     const range = document.caretRangeFromPoint(x, y);
     if (!range) return null;
-    range.expand('word');
-    return range.toString().replace(/[^\w\u00C0-\u024F\u1EA0-\u1EF9]/g, '').trim() || null;
+
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return null;
+
+    const text = node.textContent;
+    let offset = range.startOffset;
+
+    // If we landed just past the last char, step back one
+    if (offset >= text.length) offset = text.length - 1;
+
+    // Walk backwards to word start
+    let start = offset;
+    while (start > 0 && isWordChar(text[start - 1])) start--;
+
+    // Walk forwards to word end
+    let end = offset;
+    while (end < text.length && isWordChar(text[end])) end++;
+
+    const word = text.slice(start, end);
+    // Reject pure numbers or single chars
+    if (!word || word.length < 2 || /^\d+$/.test(word)) return null;
+    return word;
   }
 
   function attachCaptionClickHandler() {
